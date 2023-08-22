@@ -1,0 +1,40 @@
+name: Sync with Upstream Repository and Deploy Docker Image
+
+on:
+  schedule:
+    - cron: '0 0 * * *' # This runs the action every day at 12 AM.
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+      
+    - name: Sync with upstream
+      run: |
+        git remote add upstream https://github.com/dillionverma/llm.report.git
+        git fetch upstream
+        git checkout main
+        git merge upstream/main
+
+    - name: Push changes
+      run: |
+        git push
+
+  build:
+    needs: sync
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Login to GitHub Container Registry
+      run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+    - name: Build and push Docker image
+      run: |
+        docker build -t ghcr.io/${{ github.repository }}/llm-report:latest .
+        docker push ghcr.io/${{ github.repository }}/llm-report:latest
